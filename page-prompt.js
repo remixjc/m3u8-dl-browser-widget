@@ -29,7 +29,8 @@
     const title = document.createElement('strong');
     title.textContent = `发现视频 · ${message.name}`;
     const info = document.createElement('p');
-    info.textContent = '已捕获 playlist.m3u8。查看名称和保存位置后，发送到你的下载网站。';
+    const filename = message.filename === 'hls.m3u8' ? 'hls.m3u8' : 'playlist.m3u8';
+    info.textContent = `已捕获 ${filename}。查看名称和保存位置后，发送到你的下载网站。`;
     const button = document.createElement('button');
     button.className = 'primary';
     button.textContent = '查看并确认';

@@ -20,7 +20,7 @@
         <label class="check"><input id="per-video-folder" type="checkbox">按视频名称创建子文件夹</label>
         <label class="check"><input id="auto-start" type="checkbox">插件确认后自动点击网站的「开始下载」</label>
         <label class="check"><input id="show-prompt" type="checkbox">捕获到资源时在网页右下角提示</label>
-        <p class="hint">仅捕获 playlist.m3u8。请求头固定为两行：Referer 使用捕获时的地址栏网址；User-Agent 使用 Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36。</p>
+        <p class="hint">捕获 playlist.m3u8 和 hls.m3u8；前者按视频编号命名，后者按页面标题命名。请求头固定为两行：Referer 使用捕获时的地址栏网址；User-Agent 使用 Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36。</p>
         <button type="submit" class="primary">保存设置并授权下载网站</button>
       </form>
       <button id="grant-all" class="secondary">为其他网站开启捕获权限</button>

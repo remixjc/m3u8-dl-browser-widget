@@ -1,6 +1,6 @@
 import {
-  DEFAULT_SETTINGS, buildHandoffUrl, buildTask, httpUrl, inferName,
-  downloadHeaders, isPlaylistUrl, serverBase,
+  DEFAULT_SETTINGS, buildHandoffUrl, buildTask, httpUrl, inferCaptureName,
+  downloadHeaders, manifestFilename, serverBase,
 } from './core.js';
 
 let settings = { ...DEFAULT_SETTINGS };
@@ -20,7 +20,7 @@ function serial(key, work) {
 const keyFor = id => `captures:${id}`;
 const pendingFor = id => `handoff:${id}`;
 const getCaptures = async id =>
-  ((await chrome.storage.session.get(keyFor(id)))[keyFor(id)] || []).filter(item => isPlaylistUrl(item.url));
+  ((await chrome.storage.session.get(keyFor(id)))[keyFor(id)] || []).filter(item => manifestFilename(item.url));
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes.settings) {
@@ -29,14 +29,14 @@ chrome.storage.onChanged.addListener((changes, area) => {
 });
 
 chrome.webRequest.onBeforeSendHeaders.addListener(details => {
-  if (details.tabId < 0 || !isPlaylistUrl(details.url)) return;
+  if (details.tabId < 0 || !manifestFilename(details.url)) return;
   const context = {
     tabId: details.tabId, url: details.url, documentUrl: details.documentUrl,
     timestamp: Date.now(),
     pageSnapshot: chrome.tabs.get(details.tabId).then(tab => ({ url: tab.url, title: tab.title })).catch(() => null),
   };
   requests.set(details.requestId, context);
-  // 只为 playlist.m3u8 保留短期页面上下文，不读取浏览器请求头。
+  // 只为支持的清单文件保留短期页面上下文，不读取浏览器请求头。
   for (const [id, request] of requests) {
     if (requests.size > 500 || request.timestamp < Date.now() - 60000) requests.delete(id);
     else break;
@@ -46,7 +46,7 @@ chrome.webRequest.onBeforeSendHeaders.addListener(details => {
 chrome.webRequest.onHeadersReceived.addListener(details => {
   const context = requests.get(details.requestId);
   if (details.tabId < 0 || details.statusCode < 200 || details.statusCode >= 300) return;
-  if (!isPlaylistUrl(details.url)) return;
+  if (!manifestFilename(details.url)) return;
   capture(details, context).catch(console.error);
 }, { urls: ['http://*/*', 'https://*/*'] });
 
@@ -71,7 +71,7 @@ async function capture(details, request) {
   }
   const item = {
     id: crypto.randomUUID(), url: details.url, pageUrl: tab.url,
-    title: tab.title || '', name: inferName(tab.url, tab.title),
+    title: tab.title || '', name: inferCaptureName(details.url, tab.url, tab.title),
     headers: downloadHeaders(tab.url),
     capturedAt: Date.now(),
   };
@@ -80,7 +80,9 @@ async function capture(details, request) {
     const existing = list.find(x => x.url === item.url && x.pageUrl === item.pageUrl);
     if (existing) {
       // 保留完整 URL，刷新页面信息，但不重复提示。
-      Object.assign(existing, { headers: item.headers, capturedAt: item.capturedAt });
+      Object.assign(existing, {
+        title: item.title, name: item.name, headers: item.headers, capturedAt: item.capturedAt,
+      });
       await chrome.storage.session.set({ [keyFor(tab.id)]: list });
       return;
     }
@@ -91,7 +93,9 @@ async function capture(details, request) {
     if (settings.showPrompt) {
       try {
         await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['page-prompt.js'] });
-        await chrome.tabs.sendMessage(tab.id, { type: 'CAPTURE_NOTICE', name: item.name });
+        await chrome.tabs.sendMessage(tab.id, {
+          type: 'CAPTURE_NOTICE', name: item.name, filename: manifestFilename(item.url),
+        });
       } catch { /* 工具栏弹窗仍然可以使用 */ }
     }
   });

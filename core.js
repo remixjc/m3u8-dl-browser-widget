@@ -51,12 +51,25 @@ export function isPlaylistUrl(value) {
   try { return httpUrl(value).pathname.endsWith('/playlist.m3u8'); } catch { return false; }
 }
 
+export function manifestFilename(value) {
+  try {
+    const filename = httpUrl(value).pathname.split('/').pop();
+    return ['playlist.m3u8', 'hls.m3u8'].includes(filename) ? filename : '';
+  } catch { return ''; }
+}
+
+export function inferCaptureName(mediaUrl, pageUrl, title = '') {
+  // hls 站点按完整页面标题命名，不从地址或标题提取视频编号。
+  if (manifestFilename(mediaUrl) === 'hls.m3u8') return safeName(title);
+  return inferName(pageUrl, title);
+}
+
 export function downloadHeaders(pageUrl) {
   return { Referer: httpUrl(pageUrl).href, 'User-Agent': DOWNLOAD_USER_AGENT };
 }
 
 export function buildTask(resource, settings, nameOverride) {
-  if (!isPlaylistUrl(resource.url)) throw new Error('只支持文件名为 playlist.m3u8 的下载地址。');
+  if (!manifestFilename(resource.url)) throw new Error('只支持文件名为 playlist.m3u8 或 hls.m3u8 的下载地址。');
   const filename = safeName(nameOverride || resource.name);
   const inputRoot = String(settings.rootDir || '').trim();
   const root = inputRoot === '/' || /^[a-z]:[\\/]$/i.test(inputRoot) ? inputRoot : inputRoot.replace(/[\\/]+$/, '');

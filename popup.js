@@ -1,4 +1,4 @@
-import { buildTask, serverBase } from './core.js';
+import { buildTask, manifestFilename, serverBase } from './core.js';
 const $ = id => document.getElementById(id);
 let state;
 const report = (message, error = false) => {
@@ -26,12 +26,12 @@ function readSettings() {
   };
 }
 function renderItems() {
-  $('count').textContent = `当前页面 · ${state.items.length} 个 playlist.m3u8`;
+  $('count').textContent = `当前页面 · ${state.items.length} 个视频资源`;
   $('items').replaceChildren();
   if (!state.items.length) {
     const empty = document.createElement('div');
     empty.className = 'empty';
-    empty.textContent = '打开视频播放页并点击播放。\n只显示 playlist.m3u8 请求。\n安装或授权后需要刷新原网页。';
+    empty.textContent = '打开视频播放页并点击播放。\n支持 playlist.m3u8 和 hls.m3u8 请求。\n安装或授权后需要刷新原网页。';
     empty.style.whiteSpace = 'pre-line';
     $('items').append(empty);
     return;
@@ -41,7 +41,7 @@ function renderItems() {
     card.className = 'card';
     const tag = document.createElement('span');
     tag.className = 'tag';
-    tag.textContent = 'playlist.m3u8';
+    tag.textContent = manifestFilename(resource.url);
     const label = document.createElement('label');
     label.textContent = '视频名称 / 子文件夹名称';
     const name = document.createElement('input');

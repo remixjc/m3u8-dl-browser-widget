@@ -5,15 +5,22 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import assert from 'node:assert/strict';
-import { buildTask, DEFAULT_SETTINGS } from '../core.js';
+import { buildTask, DEFAULT_SETTINGS, inferCaptureName } from '../core.js';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const output = path.join(root, '.test-output');
 await mkdir(output, { recursive: true });
-const task = buildTask({
+let task = buildTask({
   url: 'https://cdn.example/a%2Fb/playlist.m3u8?token=%25%2F&part=1',
   name: 'SW-359', pageUrl: 'https://site.example/en/sw-359',
   headers: { referer: 'https://wrong.example/', 'user-agent': 'Wrong UA', origin: 'https://wrong.example/' },
+}, DEFAULT_SETTINGS);
+const playlistTask = task;
+const hlsUrl = 'https://cdn.example/a%2Fb/hls.m3u8?token=%25%2F&part=1';
+const hlsPage = 'https://site.example/article/abc-123';
+const hlsTitle = 'ABC-123 完整文章标题 / 第一章';
+const hlsTask = buildTask({
+  url: hlsUrl, name: inferCaptureName(hlsUrl, hlsPage, hlsTitle), pageUrl: hlsPage,
 }, DEFAULT_SETTINGS);
 function fixture(mode) {
   return `<!doctype html><html><meta charset="UTF-8"><body>
@@ -52,7 +59,10 @@ const state = {
     autoStart: false, showPrompt: true,
   },
   tab: { id: 7, url: 'https://site.example/sw-359' },
-  items: [{ id: 'r', name: 'SW-359', url: task.url, headers: task.headers, pageUrl: task.headers.Referer }],
+  items: [
+    { id: 'r', name: 'SW-359', url: task.url, headers: task.headers, pageUrl: task.headers.Referer },
+    { id: 'hls', name: hlsTask.filename, url: hlsTask.url, headers: hlsTask.headers, pageUrl: hlsPage },
+  ],
 };
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
@@ -139,32 +149,38 @@ try {
     }
     throw new Error(`Page condition timeout: ${expression}\n${await evalInPage('JSON.stringify({text:document.body.innerText, url:location.href, bridge:window.__m3u8HelperBridgeInstalled, state:document.readyState})')}\n${JSON.stringify(runtimeErrors)}`);
   };
-  for (const mode of ['review', 'auto', 'password', 'changed']) {
-    await call('Page.navigate', { url: `${base}/page/download?mode=${mode}#headers=test` }, sessionId);
-    await waitFor(`location.search === "?mode=${mode}" && document.readyState === "complete" && typeof window.events === "object"`);
-    if (mode === 'password') {
-      await new Promise(resolve => setTimeout(resolve, 250));
-      assert.equal(await evalInPage('events.clicks'), 0, 'password must block automatic submit');
-      await evalInPage('document.getElementById("password").remove()');
+  for (const variant of [playlistTask, hlsTask]) {
+    task = variant;
+    for (const mode of ['review', 'auto', 'password', 'changed']) {
+      await call('Page.navigate', { url: `${base}/page/download?mode=${mode}#headers=test` }, sessionId);
+      await waitFor(`location.search === "?mode=${mode}" && document.readyState === "complete" && typeof window.events === "object"`);
+      if (mode === 'password') {
+        await new Promise(resolve => setTimeout(resolve, 250));
+        assert.equal(await evalInPage('events.clicks'), 0, 'password must block automatic submit');
+        await evalInPage('document.getElementById("password").remove()');
+      }
+      if (mode === 'changed') {
+        await waitFor('document.body.textContent.includes("表单结构与适配版本不同")');
+        assert.equal(await evalInPage('events.clicks'), 0);
+      } else {
+        await waitFor('events.consumed === 1');
+        const result = await evalInPage('({ ...events, hash: location.hash })');
+        assert.equal(result.inputs.urls, task.url);
+        assert.equal(result.inputs.name, task.filename);
+        assert.equal(result.inputs.directory, task.saveDir);
+        assert.equal(result.inputs.headers, `Referer: ${task.headers.Referer}\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36`);
+        assert.equal(result.clicks, mode === 'review' ? 0 : 1);
+        assert.equal(result.hash, '');
+      }
+      console.log(`PASS browser bridge: ${new URL(task.url).pathname.split('/').pop()} / ${mode}`);
     }
-    if (mode === 'changed') {
-      await waitFor('document.body.textContent.includes("表单结构与适配版本不同")');
-      assert.equal(await evalInPage('events.clicks'), 0);
-    } else {
-      await waitFor('events.consumed === 1');
-      const result = await evalInPage('({ ...events, hash: location.hash })');
-      assert.equal(result.inputs.urls, task.url);
-      assert.equal(result.inputs.name, task.filename);
-      assert.equal(result.inputs.directory, task.saveDir);
-      assert.equal(result.inputs.headers, 'Referer: https://site.example/en/sw-359\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
-      assert.equal(result.clicks, mode === 'review' ? 0 : 1);
-      assert.equal(result.hash, '');
-    }
-    console.log(`PASS browser bridge: ${mode}`);
   }
   await call('Page.navigate', { url: `${base}/popup.html` }, sessionId);
-  await waitFor('document.querySelectorAll(".card").length === 1');
+  await waitFor('document.querySelectorAll(".card").length === 2');
   assert.equal(await evalInPage('document.querySelector(".path").textContent'), '保存至：/app/downloads/SW-359');
+  assert.deepEqual(await evalInPage('Array.from(document.querySelectorAll(".tag"), item => item.textContent)'), ['playlist.m3u8', 'hls.m3u8']);
+  assert.equal(await evalInPage('document.querySelectorAll(".path")[1].textContent'), `保存至：${hlsTask.saveDir}`);
+  assert.equal(await evalInPage('document.querySelectorAll(".card input")[1].value'), hlsTask.filename);
   const shot = await call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false }, sessionId);
   await writeFile(path.join(output, 'popup.png'), Buffer.from(shot.data, 'base64'));
   console.log(`PASS popup render: ${path.join(output, 'popup.png')}`);

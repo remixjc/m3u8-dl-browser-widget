@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   DEFAULT_SETTINGS, buildHandoffUrl, buildTask, httpUrl, inferName,
-  DOWNLOAD_USER_AGENT, downloadHeaders, isPlaylistUrl, safeName, serverBase,
+  DOWNLOAD_USER_AGENT, downloadHeaders, isPlaylistUrl, manifestFilename, inferCaptureName, safeName, serverBase,
 } from '../core.js';
 
 const settings = { ...DEFAULT_SETTINGS, serverUrl: 'http://localhost:6600' };
@@ -36,6 +36,32 @@ test('请求头仅包含指定大小写的两行，使用地址栏网址和固�
     Referer: resource.pageUrl,
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
   });
+});
+test('hls.m3u8 严格匹配文件名，标题命名不提取编号，保留签名并生成安全目录', () => {
+  const url = 'https://cdn.example/video/hls.m3u8?sig=%25%2F&name=playlist.m3u8';
+  assert.equal(manifestFilename(url), 'hls.m3u8');
+  assert.equal(manifestFilename(resource.url), 'playlist.m3u8');
+  for (const value of [
+    'https://cdn.example/nothls.m3u8', 'https://cdn.example/hls.m3u8.bak',
+    'https://cdn.example/hls.m3u8/segment.ts', 'https://cdn.example/api?file=hls.m3u8',
+    'https://cdn.example/HLS.M3U8', 'https://cdn.example/index.m3u8', 'javascript:alert(1)',
+  ]) assert.equal(manifestFilename(value), '', value);
+  const title = 'SW-359 完整文章标题 / 第一章：高清版';
+  const name = inferCaptureName(url, resource.pageUrl, title);
+  assert.equal(name, 'SW-359 完整文章标题 _ 第一章_高清版');
+  assert.equal(inferCaptureName(resource.url, resource.pageUrl, title), 'SW-359');
+  assert.equal(inferCaptureName(url, resource.pageUrl, ''), '未命名视频');
+  assert.equal(inferCaptureName(url, resource.pageUrl, 'CON'), '_CON');
+  const hls = { ...resource, url, name, title };
+  const task = buildTask(hls, settings);
+  assert.equal(task.url, url);
+  assert.equal(task.filename, name);
+  assert.equal(task.saveDir, `/app/downloads/${name}`);
+  assert.deepEqual(task.headers, downloadHeaders(resource.pageUrl));
+  const target = new URL(buildHandoffUrl(hls, settings, 'hls-nonce'));
+  assert.equal(decodeURIComponent(target.searchParams.get('url')), url);
+  assert.equal(target.searchParams.get('title'), name);
+  assert.equal(buildTask(hls, settings, '手动名称').filename, '手动名称');
 });
 test('旧版请求头设置不能覆盖固定格式或传入 Cookie/Origin', () => {
   const task = buildTask(resource, { ...settings, includeSensitive: true, refererMode: 'request' });

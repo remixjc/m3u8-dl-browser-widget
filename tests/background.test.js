@@ -146,4 +146,25 @@ test('后台捕获、去重、确认发送与来源限制', async t => {
     assert.equal((await message({ type: 'GET_STATE' })).data.items.length, 1);
     assert.equal((await message({ type: 'SEND', tabId: 7, resourceId: 'legacy' })).ok, false);
   });
+  await t.test('hls 清单按完整标题捕获并发送，重复请求更新晚到的页面标题', async () => {
+    const hlsUrl = 'https://cdn.example/article/hls.m3u8?sig=abc%2F%25';
+    tabs.get(7).url = 'https://article.example/video/abc-123';
+    tabs.get(7).title = '加载中';
+    request('hls-loading', hlsUrl);
+    await flush();
+    tabs.get(7).title = 'ABC-123 完整文章标题 / 第二章';
+    request('hls-ready', hlsUrl);
+    await flush();
+    const items = (await message({ type: 'GET_STATE' })).data.items;
+    const hlsItems = items.filter(item => item.url === hlsUrl);
+    assert.equal(hlsItems.length, 1);
+    assert.equal(hlsItems[0].name, 'ABC-123 完整文章标题 _ 第二章');
+    const reply = await message({ type: 'SEND', tabId: 7, resourceId: hlsItems[0].id });
+    assert.equal(reply.ok, true);
+    const task = store[`handoff:${reply.data.tabId}`].task;
+    assert.equal(task.url, hlsUrl);
+    assert.equal(task.filename, hlsItems[0].name);
+    assert.equal(task.saveDir, '/app/downloads/ABC-123 完整文章标题 _ 第二章');
+    assert.deepEqual(task.headers, downloadHeaders(tabs.get(7).url));
+  });
 });
