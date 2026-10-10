@@ -1,8 +1,20 @@
 # M3U8 下载助手 · 独立 Chrome 扩展
 
-在电脑浏览器中浏览视频，仅捕获 `playlist.m3u8` 请求。确认后打开你部署的 m3u8-dl 网站，自动填入地址、名称、保存目录与固定的两行请求头。不需要修改、重建或重新部署原下载项目。
+面向 [lzwme/m3u8-dl](https://github.com/lzwme/m3u8-dl) WebUI 的独立 Chrome 扩展。在本机浏览器中捕获 `playlist.m3u8` 请求，确认后打开已部署的下载网站，自动填入地址、名称、保存目录与固定的两行请求头。
 
 版本：0.1.1。更新已有插件时，用新文件覆盖原插件文件夹，在 `chrome://extensions` 中点击该插件的重新加载按钮，再刷新视频网页。
+
+## 配套项目
+
+[m3u8-dl](https://github.com/lzwme/m3u8-dl) 是基于 Node.js 的开源 HLS 视频下载与管理工具，提供 WebUI、命令行和 Node.js API，支持 Docker 部署、多线程分片下载、缓存续传、批量任务管理，以及通过 FFmpeg 合并视频文件。
+
+本插件配合其 WebUI 使用：浏览器端负责捕获视频地址、识别名称和生成下载参数，m3u8-dl 服务端负责执行下载、保存文件和管理任务。请先按照上游项目文档部署 m3u8-dl，并将可访问的 WebUI 地址填入插件设置。接入插件无需修改、重建或重新部署已有下载服务。
+
+## 界面预览
+
+插件弹窗集中展示捕获的 `playlist.m3u8` 请求，并提供下载网站连接和保存目录设置。
+
+![M3U8 下载助手插件界面：资源捕获列表与连接及下载设置](docs/images/plugin-interface.png)
 
 ## 安装
 
@@ -79,6 +91,7 @@ core.js               命名、路径、请求头与跳转链接生成
 popup.*               工具栏确认弹窗与设置
 page-prompt.js        视频页面右下角提示
 download-bridge.js    原下载网站表单适配器
+docs/images/          README 界面截图
 tests/                无第三方依赖的自动检查
 ```
 
