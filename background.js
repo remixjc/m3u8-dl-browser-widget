@@ -1,6 +1,6 @@
 import {
   DEFAULT_SETTINGS, buildHandoffUrl, buildTask, httpUrl, inferCaptureName,
-  downloadHeaders, manifestFilename, serverBase,
+  downloadHeaders, manifestFilename, sanitizeResourceName, serverBase,
 } from './core.js';
 
 let settings = { ...DEFAULT_SETTINGS };
@@ -20,7 +20,9 @@ function serial(key, work) {
 const keyFor = id => `captures:${id}`;
 const pendingFor = id => `handoff:${id}`;
 const getCaptures = async id =>
-  ((await chrome.storage.session.get(keyFor(id)))[keyFor(id)] || []).filter(item => manifestFilename(item.url));
+  ((await chrome.storage.session.get(keyFor(id)))[keyFor(id)] || [])
+    .filter(item => manifestFilename(item.url))
+    .map(item => ({ ...item, name: sanitizeResourceName(item.url, item.name) }));
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes.settings) {

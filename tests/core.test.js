@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   DEFAULT_SETTINGS, buildHandoffUrl, buildTask, httpUrl, inferName,
-  DOWNLOAD_USER_AGENT, downloadHeaders, isPlaylistUrl, manifestFilename, inferCaptureName, safeName, serverBase,
+  DOWNLOAD_USER_AGENT, downloadHeaders, isPlaylistUrl, manifestFilename, inferCaptureName,
+  sanitizeResourceName, safeName, serverBase,
 } from '../core.js';
 
 const settings = { ...DEFAULT_SETTINGS, serverUrl: 'http://localhost:6600' };
@@ -48,7 +49,7 @@ test('hls.m3u8 严格匹配文件名，标题命名不提取编号，保留签�
   ]) assert.equal(manifestFilename(value), '', value);
   const title = 'SW-359 完整文章标题 / 第一章：高清版';
   const name = inferCaptureName(url, resource.pageUrl, title);
-  assert.equal(name, 'SW-359 完整文章标题 _ 第一章_高清版');
+  assert.equal(name, 'SW-359 完整文章标题 _ 第一章_');
   assert.equal(inferCaptureName(resource.url, resource.pageUrl, title), 'SW-359');
   assert.equal(inferCaptureName(url, resource.pageUrl, ''), '未命名视频');
   assert.equal(inferCaptureName(url, resource.pageUrl, 'CON'), '_CON');
@@ -56,12 +57,49 @@ test('hls.m3u8 严格匹配文件名，标题命名不提取编号，保留签�
   const task = buildTask(hls, settings);
   assert.equal(task.url, url);
   assert.equal(task.filename, name);
-  assert.equal(task.saveDir, `/app/downloads/${name}`);
+  assert.equal(task.saveDir, `/app/downloads/hls/${name}`);
   assert.deepEqual(task.headers, downloadHeaders(resource.pageUrl));
   const target = new URL(buildHandoffUrl(hls, settings, 'hls-nonce'));
   assert.equal(decodeURIComponent(target.searchParams.get('url')), url);
   assert.equal(target.searchParams.get('title'), name);
   assert.equal(buildTask(hls, settings, '手动名称').filename, '手动名称');
+});
+test('hls 名称最多 20 字符，缓存或手动长名称不能绕过限制，文件名与目录保持一致', () => {
+  const url = 'https://cdn.example/hls.m3u8?token=1';
+  for (const length of [19, 20, 21]) {
+    assert.equal(sanitizeResourceName(url, '中'.repeat(length)), '中'.repeat(Math.min(length, 20)));
+  }
+  const title = '😀'.repeat(21);
+  const shortName = '😀'.repeat(20);
+  assert.equal(inferCaptureName(url, resource.pageUrl, title), shortName);
+  assert.equal(sanitizeResourceName(url, `${'中'.repeat(19)}.`), '中'.repeat(19));
+  assert.equal(sanitizeResourceName(url, 'NUL'), '_NUL');
+  assert.equal(sanitizeResourceName(url, ''), '未命名视频');
+  const hls = { ...resource, url, name: title };
+  for (const override of [undefined, `${shortName}需要删除的后缀`]) {
+    const task = buildTask(hls, settings, override);
+    assert.equal(task.filename, shortName);
+    assert.equal(task.saveDir, `/app/downloads/hls/${shortName}`);
+  }
+  assert.equal(new URL(buildHandoffUrl(hls, settings, 'short')).searchParams.get('title'), shortName);
+  assert.equal(buildTask({ ...resource, name: '中'.repeat(30) }, settings).filename, '中'.repeat(30));
+});
+test('hls 在根目录下隔离保存，支持关闭标题子目录和 Linux、Windows、UNC 根路径', () => {
+  const hls = { ...resource, url: 'https://cdn.example/hls.m3u8', name: '文章标题' };
+  for (const [rootDir, expected] of [
+    ['/app/downloads/', '/app/downloads/hls'],
+    ['/', '/hls'],
+    ['D:\\downloads\\', 'D:\\downloads\\hls'],
+    ['C:\\', 'C:\\hls'],
+    ['D:/downloads/', 'D:/downloads/hls'],
+    ['\\\\server\\share\\', '\\\\server\\share\\hls'],
+  ]) {
+    const separator = expected.includes('\\') ? '\\' : '/';
+    assert.equal(buildTask(hls, { ...settings, rootDir, perVideoFolder: false }).saveDir, expected);
+    assert.equal(buildTask(hls, { ...settings, rootDir }).saveDir, `${expected}${separator}文章标题`);
+  }
+  assert.equal(buildTask(resource, settings).saveDir, '/app/downloads/SW-359');
+  assert.equal(buildTask(resource, { ...settings, perVideoFolder: false }).saveDir, '/app/downloads');
 });
 test('旧版请求头设置不能覆盖固定格式或传入 Cookie/Origin', () => {
   const task = buildTask(resource, { ...settings, includeSensitive: true, refererMode: 'request' });

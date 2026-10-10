@@ -18,7 +18,7 @@ let task = buildTask({
 const playlistTask = task;
 const hlsUrl = 'https://cdn.example/a%2Fb/hls.m3u8?token=%25%2F&part=1';
 const hlsPage = 'https://site.example/article/abc-123';
-const hlsTitle = 'ABC-123 完整文章标题 / 第一章';
+const hlsTitle = 'ABC-123 完整文章标题 / 第一章加上一个很长很长的网站后缀';
 const hlsTask = buildTask({
   url: hlsUrl, name: inferCaptureName(hlsUrl, hlsPage, hlsTitle), pageUrl: hlsPage,
 }, DEFAULT_SETTINGS);
@@ -61,7 +61,7 @@ const state = {
   tab: { id: 7, url: 'https://site.example/sw-359' },
   items: [
     { id: 'r', name: 'SW-359', url: task.url, headers: task.headers, pageUrl: task.headers.Referer },
-    { id: 'hls', name: hlsTask.filename, url: hlsTask.url, headers: hlsTask.headers, pageUrl: hlsPage },
+    { id: 'hls', name: hlsTitle, url: hlsTask.url, headers: hlsTask.headers, pageUrl: hlsPage },
   ],
 };
 const server = createServer(async (req, res) => {
@@ -181,6 +181,12 @@ try {
   assert.deepEqual(await evalInPage('Array.from(document.querySelectorAll(".tag"), item => item.textContent)'), ['playlist.m3u8', 'hls.m3u8']);
   assert.equal(await evalInPage('document.querySelectorAll(".path")[1].textContent'), `保存至：${hlsTask.saveDir}`);
   assert.equal(await evalInPage('document.querySelectorAll(".card input")[1].value'), hlsTask.filename);
+  assert.equal(Array.from(hlsTask.filename).length, 20);
+  assert.equal(hlsTask.saveDir, `/app/downloads/hls/${hlsTask.filename}`);
+  assert.equal(await evalInPage('document.querySelectorAll(".card input")[1].maxLength'), 20);
+  await evalInPage('document.querySelectorAll(".card input")[1].value="中".repeat(25); document.querySelectorAll(".card input")[1].dispatchEvent(new Event("input",{bubbles:true}))');
+  assert.equal(await evalInPage('document.querySelectorAll(".card input")[1].value'), '中'.repeat(20));
+  assert.equal(await evalInPage('document.querySelectorAll(".path")[1].textContent'), `保存至：/app/downloads/hls/${'中'.repeat(20)}`);
   const shot = await call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false }, sessionId);
   await writeFile(path.join(output, 'popup.png'), Buffer.from(shot.data, 'base64'));
   console.log(`PASS popup render: ${path.join(output, 'popup.png')}`);

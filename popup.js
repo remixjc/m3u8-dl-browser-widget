@@ -1,4 +1,4 @@
-import { buildTask, manifestFilename, serverBase } from './core.js';
+import { buildTask, HLS_NAME_MAX_LENGTH, manifestFilename, sanitizeResourceName, serverBase } from './core.js';
 const $ = id => document.getElementById(id);
 let state;
 const report = (message, error = false) => {
@@ -45,8 +45,8 @@ function renderItems() {
     const label = document.createElement('label');
     label.textContent = '视频名称 / 子文件夹名称';
     const name = document.createElement('input');
-    name.value = resource.name;
-    name.maxLength = 100;
+    name.value = sanitizeResourceName(resource.url, resource.name);
+    name.maxLength = manifestFilename(resource.url) === 'hls.m3u8' ? HLS_NAME_MAX_LENGTH : 100;
     label.append(name);
     const url = document.createElement('div');
     url.className = 'resource';
@@ -57,7 +57,13 @@ function renderItems() {
       try { path.textContent = `保存至：${buildTask(resource, state.settings, name.value).saveDir}`; }
       catch (error) { path.textContent = error.message; }
     };
-    name.addEventListener('input', preview);
+    name.addEventListener('input', () => {
+      if (manifestFilename(resource.url) === 'hls.m3u8') {
+        const shortName = Array.from(name.value).slice(0, HLS_NAME_MAX_LENGTH).join('');
+        if (shortName !== name.value) name.value = shortName;
+      }
+      preview();
+    });
     preview();
     const confirm = document.createElement('button');
     confirm.className = 'primary';

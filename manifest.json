@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "M3U8 下载助手",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "捕获 playlist.m3u8 和 hls.m3u8，按编号或页面标题命名，自动填入你的 m3u8-dl 下载网站。",
   "minimum_chrome_version": "127",
   "permissions": [

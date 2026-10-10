@@ -7,6 +7,7 @@ export const DEFAULT_SETTINGS = {
 };
 
 export const DOWNLOAD_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
+export const HLS_NAME_MAX_LENGTH = 20;
 
 export function httpUrl(value) {
   const url = new URL(value);
@@ -59,9 +60,17 @@ export function manifestFilename(value) {
 }
 
 export function inferCaptureName(mediaUrl, pageUrl, title = '') {
-  // hls 站点按完整页面标题命名，不从地址或标题提取视频编号。
-  if (manifestFilename(mediaUrl) === 'hls.m3u8') return safeName(title);
+  // hls 站点按页面标题命名，不从地址或标题提取视频编号。
+  if (manifestFilename(mediaUrl) === 'hls.m3u8') return sanitizeResourceName(mediaUrl, title);
   return inferName(pageUrl, title);
+}
+
+export function sanitizeResourceName(mediaUrl, value) {
+  const name = safeName(value);
+  // 按 Unicode 字符截取，避免把 emoji 的代理对切成半个字符。
+  return manifestFilename(mediaUrl) === 'hls.m3u8'
+    ? safeName(Array.from(name).slice(0, HLS_NAME_MAX_LENGTH).join(''))
+    : name;
 }
 
 export function downloadHeaders(pageUrl) {
@@ -70,7 +79,7 @@ export function downloadHeaders(pageUrl) {
 
 export function buildTask(resource, settings, nameOverride) {
   if (!manifestFilename(resource.url)) throw new Error('只支持文件名为 playlist.m3u8 或 hls.m3u8 的下载地址。');
-  const filename = safeName(nameOverride || resource.name);
+  const filename = sanitizeResourceName(resource.url, nameOverride || resource.name);
   const inputRoot = String(settings.rootDir || '').trim();
   const root = inputRoot === '/' || /^[a-z]:[\\/]$/i.test(inputRoot) ? inputRoot : inputRoot.replace(/[\\/]+$/, '');
   if (!root || /[\r\n\u0000]/.test(root) || !/^(?:\/|[a-z]:[\\/]|\\\\)/i.test(root)) {
@@ -79,10 +88,13 @@ export function buildTask(resource, settings, nameOverride) {
   if (root.split(/[\\/]/).includes('..')) throw new Error('下载根目录不能包含 ..。');
   const headers = downloadHeaders(resource.pageUrl);
   const separator = /^[a-z]:\\/i.test(root) || root.startsWith('\\\\') ? '\\' : '/';
+  const saveRoot = manifestFilename(resource.url) === 'hls.m3u8'
+    ? `${root.replace(/[\\/]+$/, '')}${separator}hls`
+    : root;
   return {
     url: resource.url,
     filename,
-    saveDir: settings.perVideoFolder ? `${root.replace(/[\\/]+$/, '')}${separator}${filename}` : root,
+    saveDir: settings.perVideoFolder ? `${saveRoot.replace(/[\\/]+$/, '')}${separator}${filename}` : saveRoot,
     headers,
   };
 }
@@ -94,7 +106,7 @@ export function buildHandoffUrl(resource, settings, nonce) {
   // 当前 WebUI 的路由先解码一次，App.vue 又 decodeURIComponent 一次。
   // 双重编码确保签名 URL 内的 %2F、%25、中文等原样恢复。
   url.searchParams.set('url', encodeURIComponent(resource.url));
-  url.searchParams.set('title', resource.name);
+  url.searchParams.set('title', sanitizeResourceName(resource.url, resource.name));
   url.searchParams.set('helper', nonce);
   // 凭据不进入服务器收到的 URL query。保存目录由注入的表单桥接器填入。
   url.hash = new URLSearchParams({ headers: JSON.stringify(downloadHeaders(resource.pageUrl)) }).toString();

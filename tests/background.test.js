@@ -164,7 +164,23 @@ test('后台捕获、去重、确认发送与来源限制', async t => {
     const task = store[`handoff:${reply.data.tabId}`].task;
     assert.equal(task.url, hlsUrl);
     assert.equal(task.filename, hlsItems[0].name);
-    assert.equal(task.saveDir, '/app/downloads/ABC-123 完整文章标题 _ 第二章');
+    assert.equal(task.saveDir, '/app/downloads/hls/ABC-123 完整文章标题 _ 第二章');
     assert.deepEqual(task.headers, downloadHeaders(tabs.get(7).url));
+  });
+  await t.test('旧缓存中的 hls 长标题在显示和发送时都限制为 20 字符', async () => {
+    const name = '这是一个超过二十个字符的文章标题用于检查旧缓存以及下载交接';
+    store['captures:7'].push({
+      id: 'long-hls', url: 'https://cdn.example/old/hls.m3u8',
+      name, pageUrl: tabs.get(7).url,
+    });
+    const item = (await message({ type: 'GET_STATE' })).data.items.find(item => item.id === 'long-hls');
+    const shortName = Array.from(name).slice(0, 20).join('');
+    assert.equal(item.name, shortName);
+    const reply = await message({ type: 'SEND', tabId: 7, resourceId: item.id, name });
+    assert.equal(reply.ok, true);
+    const pending = store[`handoff:${reply.data.tabId}`];
+    assert.equal(pending.task.filename, shortName);
+    assert.equal(pending.task.saveDir, `/app/downloads/hls/${shortName}`);
+    assert.equal(new URL(pending.url).searchParams.get('title'), shortName);
   });
 });
