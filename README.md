@@ -2,7 +2,7 @@
 
 面向 [lzwme/m3u8-dl](https://github.com/lzwme/m3u8-dl) WebUI 的独立 Chrome 扩展。在本机浏览器中捕获 `playlist.m3u8` 请求，确认后打开已部署的下载网站，自动填入地址、名称、保存目录与固定的两行请求头。
 
-版本：0.1.1。更新已有插件时，用新文件覆盖原插件文件夹，在 `chrome://extensions` 中点击该插件的重新加载按钮，再刷新视频网页。
+版本：1.0.0。更新已有插件时，用新文件覆盖原插件文件夹，在 `chrome://extensions` 中点击该插件的重新加载按钮，再刷新视频网页。
 
 ## 配套项目
 
@@ -18,7 +18,7 @@
 
 ## 安装
 
-1. 使用 Google Chrome 127 或更新版本，打开 `chrome://extensions`。
+1. 从 [GitHub Releases](https://github.com/remixjc/m3u8-dl-browser-widget/releases/latest) 下载插件安装 ZIP 并解压。不要选择 GitHub 自动附带的 Source code 源码归档。使用 Google Chrome 127 或更新版本，打开 `chrome://extensions`。
 2. 打开右上角「开发者模式」。
 3. 点击「加载已解压的扩展程序」，选择包含 `manifest.json` 的 `m3u8-download-helper` 文件夹。若拿到 ZIP，先解压。
 4. 在浏览器工具栏的扩展菜单中固定「M3U8 下载助手」。
@@ -93,7 +93,44 @@ page-prompt.js        视频页面右下角提示
 download-bridge.js    原下载网站表单适配器
 docs/images/          README 界面截图
 tests/                无第三方依赖的自动检查
+scripts/              版本同步与跨平台 ZIP 打包
+.github/workflows/    标签触发的自动发布流程
 ```
+
+## 打包与发布
+
+开发和打包需要 Node.js 22 或更新版本。没有第三方运行依赖，无需安装依赖即可执行：
+
+```powershell
+pnpm test
+pnpm package
+```
+
+不使用 pnpm 时，等效打包命令为 `node scripts/package.mjs`。脚本从白名单收集插件运行文件、README 和界面截图，统一文本换行、文件顺序和 ZIP 时间戳，输出：
+
+```text
+dist/
+├── m3u8-download-helper-v1.0.0.zip
+└── m3u8-download-helper-v1.0.0.zip.sha256
+```
+
+ZIP 内含 `m3u8-download-helper/` 文件夹，可直接解压后加载，不包含 `.git`、测试浏览器数据、开发脚本或本机设置。打包脚本同时校验 `package.json` 与 `manifest.json` 的版本一致。
+
+发布新版本：
+
+1. 执行 `pnpm version:set 1.0.1`，同步 package、manifest 和 README 版本。
+2. 新建 `docs/releases/v1.0.1.md`，编写该版本的功能、修复和安装说明。
+3. 执行 `pnpm test` 和 `pnpm package`，检查生成的安装包。
+4. 提交修改并推送 `main`，再创建和推送同名版本标签：
+
+```powershell
+git tag -a v1.0.1 -m "Release v1.0.1"
+git push origin v1.0.1
+```
+
+GitHub Actions 会在标签对应的提交上运行逻辑、打包和 Chrome 模拟表单检查，校验标签版本与发布说明，然后创建正式 GitHub Release 并上传 ZIP 与 SHA-256 文件。流程使用仓库提供的 `GITHUB_TOKEN`，无需额外配置个人 Token；仓库需允许 GitHub Actions 运行。已发布的同名 Release 不会被自动覆盖。
+
+也可在 Actions 的 Release 工作流中手动运行，填写已存在的版本标签，用于失败后重试。这里发布的是 GitHub 下载包；Chrome 的安装方式仍为加载已解压的扩展程序。
 
 ## 验证
 
