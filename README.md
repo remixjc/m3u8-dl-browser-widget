@@ -4,6 +4,8 @@
 
 版本：1.0.0。更新已有插件时，用新文件覆盖原插件文件夹，在 `chrome://extensions` 中点击该插件的重新加载按钮，再刷新视频网页。
 
+[产品介绍与安装指引](https://remixjc.github.io/m3u8-dl-browser-widget/) · [下载正式版](https://github.com/remixjc/m3u8-dl-browser-widget/releases/latest)
+
 ## 配套项目
 
 [m3u8-dl](https://github.com/lzwme/m3u8-dl) 是基于 Node.js 的开源 HLS 视频下载与管理工具，提供 WebUI、命令行和 Node.js API，支持 Docker 部署、多线程分片下载、缓存续传、批量任务管理，以及通过 FFmpeg 合并视频文件。
@@ -95,6 +97,7 @@ docs/images/          README 界面截图
 tests/                无第三方依赖的自动检查
 scripts/              版本同步与跨平台 ZIP 打包
 .github/workflows/    标签触发的自动发布流程
+site/                 GitHub Pages 产品介绍页（纯静态，无构建依赖）
 ```
 
 ## 打包与发布
@@ -133,6 +136,14 @@ GitHub Actions 会在标签对应的提交上运行逻辑、打包和 Chrome 模
 也可在 Actions 的 Release 工作流中手动运行，填写已存在的版本标签，用于失败后重试。默认值为 `v1.0.0`，`1.0` 和 `v1.0` 会规范化为 `v1.0.0`。流程先检出触发提交并获取标签，再校验并切换到正式版本标签；不存在的标签会显示明确错误。
 
 推送 `main` 上的发布工作流修复也会重试当前 package 版本对应的标签，安装包始终来自该标签，不移动标签。已有正式 Release 的 ZIP 和校验文件与本次构建一致时，重试成功结束；不一致时停止，避免覆盖已发布文件。这里发布的是 GitHub 下载包；Chrome 的安装方式仍为加载已解压的扩展程序。
+
+## 产品介绍页
+
+`site/` 是独立的 HTML、CSS 和 JavaScript 静态网站，包含产品介绍、流程演示、真实界面截图、安装步骤与常见问题。无需安装依赖或构建；所有样式、脚本和图片均随网站一起发布。
+
+GitHub Pages 使用 GitHub Actions 作为发布来源。推送 `main` 上的 `site/**` 或 `.github/workflows/pages.yml` 修改，会自动部署到 [产品介绍页](https://remixjc.github.io/m3u8-dl-browser-widget/)。也可在 Actions 中手动运行「Deploy website to Pages」。发布包仍由独立的 Release 工作流管理。
+
+本机预览时，可用任意静态服务器服务 `site/`，例如 `python -m http.server 8080 --directory site`，然后浏览器访问 `http://localhost:8080`。
 
 ## 验证
 
