@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "M3U8 下载助手",
+  "version": "0.1.1",
+  "description": "仅捕获 playlist.m3u8，自动命名并使用固定请求头填入你自己的 m3u8-dl 下载网站。",
+  "minimum_chrome_version": "127",
+  "permissions": ["storage", "webRequest", "scripting", "activeTab"],
+  "host_permissions": ["*://*.missav.live/*", "*://*.surrit.com/*"],
+  "optional_host_permissions": ["http://*/*", "https://*/*"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "action": { "default_popup": "popup.html", "default_title": "M3U8 下载助手" },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>M3U8 下载助手</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header><div class="logo">M</div><div><h1>下载助手</h1><p>浏览在本机 · 下载到你的服务器</p></div></header>
+  <main>
+    <div id="status" role="status" aria-live="polite"></div>
+    <section class="intro"><strong id="count">正在读取资源…</strong><button id="clear" class="text-button">清空</button></section>
+    <div id="items"></div>
+    <details id="settings">
+      <summary>连接与下载设置 <span>首次使用请配置</span></summary>
+      <form id="settings-form">
+        <label>下载网站地址<input id="server-url" type="url" placeholder="http://你的服务器:6600" required></label>
+        <label>Docker 内下载根目录<input id="root-dir" placeholder="/app/downloads" required></label>
+        <label class="check"><input id="per-video-folder" type="checkbox">按视频名称创建子文件夹</label>
+        <label class="check"><input id="auto-start" type="checkbox">插件确认后自动点击网站的「开始下载」</label>
+        <label class="check"><input id="show-prompt" type="checkbox">捕获到资源时在网页右下角提示</label>
+        <p class="hint">仅捕获 playlist.m3u8。请求头固定为两行：Referer 使用捕获时的地址栏网址；User-Agent 使用 Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36。</p>
+        <button type="submit" class="primary">保存设置并授权下载网站</button>
+      </form>
+      <button id="grant-all" class="secondary">为其他网站开启捕获权限</button>
+      <p class="hint">默认已支持 missav.live 与 surrit.com。其他域名或 CDN 需要额外授权；授权后请刷新视频网站并重新播放。</p>
+    </details>
+    <footer>请求在你的电脑捕获；文件由 Docker 下载。点击发送之前不会提交下载。</footer>
+  </main>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

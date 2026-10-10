@@ -1,0 +1,21 @@
+:root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#172033;background:#f4f7fb;font-size:13px}
+*{box-sizing:border-box}body{margin:0;width:420px;max-height:590px;overflow:auto}
+header{padding:22px 20px 18px;display:flex;gap:12px;align-items:center;background:#fff;border-bottom:1px solid #e4eaf4}
+.logo{width:42px;height:42px;background:#2563eb;color:white;display:grid;place-items:center;border-radius:13px;font-size:24px;font-weight:800}
+h1{font-size:19px;margin:0 0 4px}header p{margin:0;color:#718096;font-size:12px}main{padding:16px}
+.intro{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+button,input,select{font:inherit}button{cursor:pointer;border:0;border-radius:9px;padding:10px 12px;font-weight:600}
+button:disabled{opacity:.55;cursor:wait}.primary{background:#2563eb;color:#fff;width:100%}.secondary{background:#e9effb;color:#2453a6;width:100%;margin-top:12px}
+.text-button{background:transparent;color:#64748b;padding:3px 6px}.card{background:#fff;border:1px solid #e0e7f1;border-radius:13px;padding:14px;margin-bottom:12px}
+.card label{margin:0}.card input{font-weight:650;font-size:15px}.resource{font-size:11px;color:#64748b;word-break:break-all;max-height:44px;overflow:auto;margin:10px 0}
+.path{font-size:11px;color:#64748b;margin:8px 0 12px;word-break:break-all}
+.tag{display:inline-block;font-size:10px;color:#2563eb;background:#eef4ff;padding:2px 6px;border-radius:5px;margin-bottom:9px}
+.empty{text-align:center;line-height:1.8;color:#64748b;background:#fff;border:1px dashed #cfdaec;padding:25px 18px;border-radius:13px;margin-bottom:14px}
+details{background:white;border:1px solid #e0e7f1;border-radius:13px;padding:14px}
+summary{cursor:pointer;font-weight:650}summary span{font-size:11px;color:#94a3b8;font-weight:400;margin-left:8px}
+label{display:block;margin-top:14px;color:#475569;font-size:12px}input:not([type=checkbox]),select{width:100%;padding:9px 10px;margin-top:6px;border:1px solid #cfd9e8;border-radius:8px;outline:none;background:white;color:#172033}
+input:focus,select:focus{border-color:#2563eb;box-shadow:0 0 0 2px #2563eb15}
+.check{display:flex;gap:8px;align-items:flex-start;line-height:1.5}.check input{accent-color:#2563eb;margin:2px 0}
+.hint,footer{font-size:11px;line-height:1.7;color:#8490a3}footer{padding:14px 3px 0}
+#status:empty{display:none}#status{padding:10px 12px;background:#eaf2ff;color:#2453a6;border-radius:9px;margin-bottom:12px;line-height:1.6}
+#status.error{background:#fff0f0;color:#b42318}
