@@ -21,7 +21,7 @@ const hlsPage = 'https://site.example/article/abc-123';
 const hlsTitle = 'ABC-123 完整文章标题 / 第一章加上一个很长很长的网站后缀';
 const hlsTask = buildTask({
   url: hlsUrl, name: inferCaptureName(hlsUrl, hlsPage, hlsTitle), pageUrl: hlsPage,
-}, DEFAULT_SETTINGS);
+}, { ...DEFAULT_SETTINGS, refererPolicy: 'origin', userAgentPolicy: 'downloader' });
 function fixture(mode) {
   return `<!doctype html><html><meta charset="UTF-8"><body>
   <div class="modal-overlay">
@@ -41,6 +41,7 @@ function fixture(mode) {
       if (!document.getElementById('headers')) {
         const h = document.createElement('textarea');
         h.id = 'headers'; h.className = 'focus:ring-gray-500';
+        h.value = 'Referer: https://previous.example/';
         document.getElementById('basic-content').append(h);
       }
     };
@@ -149,7 +150,7 @@ try {
     }
     throw new Error(`Page condition timeout: ${expression}\n${await evalInPage('JSON.stringify({text:document.body.innerText, url:location.href, bridge:window.__m3u8HelperBridgeInstalled, state:document.readyState})')}\n${JSON.stringify(runtimeErrors)}`);
   };
-  for (const variant of [playlistTask, hlsTask]) {
+  for (const variant of [playlistTask, hlsTask, { ...hlsTask, headers: {} }]) {
     task = variant;
     for (const mode of ['review', 'auto', 'password', 'changed']) {
       await call('Page.navigate', { url: `${base}/page/download?mode=${mode}#headers=test` }, sessionId);
@@ -168,7 +169,7 @@ try {
         assert.equal(result.inputs.urls, task.url);
         assert.equal(result.inputs.name, task.filename);
         assert.equal(result.inputs.directory, task.saveDir);
-        assert.equal(result.inputs.headers, `Referer: ${task.headers.Referer}\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36`);
+        assert.equal(result.inputs.headers, Object.entries(task.headers).map(([key, value]) => `${key}: ${value}`).join('\n'));
         assert.equal(result.clicks, mode === 'review' ? 0 : 1);
         assert.equal(result.hash, '');
       }
@@ -177,6 +178,8 @@ try {
   }
   await call('Page.navigate', { url: `${base}/popup.html` }, sessionId);
   await waitFor('document.querySelectorAll(".card").length === 2');
+  assert.equal(await evalInPage('document.getElementById("referer-policy").value'), 'page');
+  assert.equal(await evalInPage('document.getElementById("user-agent-policy").value'), 'compatibility');
   assert.equal(await evalInPage('document.querySelector(".path").textContent'), '保存至：/app/downloads/SW-359');
   assert.deepEqual(await evalInPage('Array.from(document.querySelectorAll(".tag"), item => item.textContent)'), ['playlist.m3u8', 'hls.m3u8']);
   assert.equal(await evalInPage('document.querySelectorAll(".path")[1].textContent'), `保存至：${hlsTask.saveDir}`);

@@ -20,7 +20,20 @@
         <label class="check"><input id="per-video-folder" type="checkbox">按视频名称创建子文件夹</label>
         <label class="check"><input id="auto-start" type="checkbox">插件确认后自动点击网站的「开始下载」</label>
         <label class="check"><input id="show-prompt" type="checkbox">捕获到资源时在网页右下角提示</label>
-        <p class="hint">捕获 playlist.m3u8 和 hls.m3u8；前者按视频编号命名，后者取页面标题前 20 字符并保存到根目录下的 hls 文件夹。请求头固定为两行：Referer 使用捕获时的地址栏网址；User-Agent 使用 Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36。</p>
+        <label>Referer
+          <select id="referer-policy">
+            <option value="page">播放页地址（去除 # 片段）</option>
+            <option value="origin">仅播放站点根地址</option>
+            <option value="omit">不由插件填写</option>
+          </select>
+        </label>
+        <label>User-Agent
+          <select id="user-agent-policy">
+            <option value="compatibility">沿用原有兼容值</option>
+            <option value="downloader">使用下载器默认行为</option>
+          </select>
+        </label>
+        <p class="hint">设置保存后用于下次发送。分片请求由 m3u8-dl 下载器发出。</p>
         <button type="submit" class="primary">保存设置并授权下载网站</button>
       </form>
       <button id="grant-all" class="secondary">为其他网站开启捕获权限</button>

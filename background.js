@@ -160,6 +160,10 @@ async function handleMessage(message, sender) {
   if (message.type === 'SAVE_SETTINGS') {
     const next = { ...DEFAULT_SETTINGS, ...message.settings };
     if (next.serverUrl) next.serverUrl = serverBase(next.serverUrl).href;
+    if (!['page', 'origin', 'omit'].includes(next.refererPolicy) ||
+        !['compatibility', 'downloader'].includes(next.userAgentPolicy)) {
+      throw new Error('请选择有效的请求头设置。');
+    }
     buildTask({ url: 'https://example.com/playlist.m3u8', name: 'check', pageUrl: 'https://example.com', headers: {} }, next);
     await chrome.storage.local.set({ settings: next });
     settings = next;
@@ -176,7 +180,7 @@ async function handleMessage(message, sender) {
     if (!item) throw new Error('资源已清除，请重新播放并捕获。');
     const task = buildTask(item, settings, message.name);
     const nonce = crypto.randomUUID();
-    const target = buildHandoffUrl({ ...item, name: task.filename, headers: task.headers }, settings, nonce);
+    const target = buildHandoffUrl({ ...item, name: task.filename }, settings, nonce);
     const tab = await chrome.tabs.create({ url: target, active: true });
     await chrome.storage.session.set({
       [pendingFor(tab.id)]: {

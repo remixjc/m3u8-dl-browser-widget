@@ -1,8 +1,8 @@
 # M3U8 下载助手 · 独立 Chrome 扩展
 
-面向 [lzwme/m3u8-dl](https://github.com/lzwme/m3u8-dl) WebUI 的独立 Chrome 扩展。在本机浏览器中捕获 `playlist.m3u8` 和 `hls.m3u8` 请求，确认后打开已部署的下载网站，自动填入地址、名称、保存目录与固定的两行请求头。
+面向 [lzwme/m3u8-dl](https://github.com/lzwme/m3u8-dl) WebUI 的独立 Chrome 扩展。在本机浏览器中捕获 `playlist.m3u8` 和 `hls.m3u8` 请求，确认后打开已部署的下载网站，自动填入地址、名称、保存目录与所选请求头。
 
-版本：1.0.2。更新已有插件时，用新文件覆盖原插件文件夹，在 `chrome://extensions` 中点击该插件的重新加载按钮，再刷新视频网页。
+版本：1.0.3。更新已有插件时，用新文件覆盖原插件文件夹，在 `chrome://extensions` 中点击该插件的重新加载按钮，再刷新视频网页。
 
 [产品介绍与安装指引](https://remixjc.github.io/m3u8-dl-browser-widget/) · [下载正式版](https://github.com/remixjc/m3u8-dl-browser-widget/releases/latest)
 
@@ -59,18 +59,21 @@
 
 ## Referer 与其他请求头
 
-请求头固定为以下两行，字段大小写和 User-Agent 文本保持一致：
+在插件的「连接与下载设置」选择以下策略并保存，发送任务时应用当前设置。
 
-```text
-Referer: 捕获时浏览器地址栏中的完整网址
-User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
-```
-
-Referer 使用顶层播放页地址，包含原有路径、查询参数和 fragment，不使用播放器 iframe 或 CDN 地址。两行之间是实际换行，不额外追加反斜杠。
-
-插件不再读取真实请求头，也不携带 Origin、Cookie 或 Authorization；旧版的 Referer 规则和敏感头设置不再生效。
+| 请求头 | 可选设置 |
+| --- | --- |
+| `Referer` | 默认使用顶层播放页地址，保留路径与查询参数并去除 `#` 片段。也可仅发送站点根地址（如 `https://example.com/`），或省略。 |
+| `User-Agent` | 默认沿用原有兼容值 `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36`。选择「使用下载器默认行为」可省略插件提供的值。 |
 
 请求头通过 URL 的 hash 传给下载网站，不放到 query 中；表单填好后插件清除 hash。hash 不会随 HTTP 请求发给服务器，但在清除前同页 JavaScript 能读取它，因此只配置你信任的下载网站。视频 URL 仍按现有 WebUI 的协议进入 query，可能出现在服务器访问日志中。
+
+### 排查分片 403
+
+1. 对已获授权的资源，先暂停其他任务，将「单任务并发下载线程数」降到 2～4，用一个任务复测。若服务商公布了并发上限，以其限制为准。
+2. 对照服务商的接入要求，在插件里选择对应的 `Referer` 策略。测试时关闭自动开始，在 WebUI 的「基本设置 → 自定义请求头」核对实际交接值。空白字段表示插件未提供请求头，下载器仍可使用自身默认值。
+3. 若任务排队一段时间后才开始连续报 403，检查清单与分片签名的有效期。通过服务商授权的入口取得新链接，比较同一分片的结果。保留原有签名参数。[签名 URL 的过期行为示例](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-signed-urls.html)
+4. 若固定几个分片持续失败，记录分片序号、请求时间、HTTP 状态与响应中可见的请求 ID，交给有权限查看 CDN 或源站日志的人核对。分享日志前去除 URL 中的签名参数。403 可由 CDN 或源站返回。[Cloudflare 403 排查](https://developers.cloudflare.com/support/troubleshooting/http-status-codes/4xx-client-error/error-403/)
 
 ## 网络与项目兼容性
 
@@ -115,8 +118,8 @@ pnpm package
 
 ```text
 dist/
-├── m3u8-download-helper-v1.0.2.zip
-└── m3u8-download-helper-v1.0.2.zip.sha256
+├── m3u8-download-helper-v1.0.3.zip
+└── m3u8-download-helper-v1.0.3.zip.sha256
 ```
 
 ZIP 内含 `m3u8-download-helper/` 文件夹，可直接解压后加载，不包含 `.git`、测试浏览器数据、开发脚本或本机设置。打包脚本同时校验 `package.json` 与 `manifest.json` 的版本一致。

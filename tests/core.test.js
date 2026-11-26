@@ -108,9 +108,24 @@ test('旧版请求头设置不能覆盖固定格式或传入 Cookie/Origin', () 
   assert.equal(task.headers['User-Agent'], DOWNLOAD_USER_AGENT);
   assert.throws(() => buildTask({ ...resource, url: 'https://cdn.example/master.m3u8' }, settings), /只支持/);
 });
-test('Referer 保留地址栏路径、查询参数与 fragment，不使用播放器地址', () => {
+test('默认 Referer 保留播放页路径和查询参数，去除 URL 片段', () => {
   const pageUrl = 'https://site.example/en/sw-359?ref=abc%2Fdef#player';
-  assert.deepEqual(downloadHeaders(pageUrl), { Referer: pageUrl, 'User-Agent': DOWNLOAD_USER_AGENT });
+  assert.deepEqual(downloadHeaders(pageUrl), {
+    Referer: 'https://site.example/en/sw-359?ref=abc%2Fdef', 'User-Agent': DOWNLOAD_USER_AGENT,
+  });
+});
+test('任务和跳转使用同一份请求头策略，支持站点根地址和省略请求头', () => {
+  const item = { ...resource, pageUrl: 'https://site.example:8443/watch?ref=1#player' };
+  const originSettings = { ...settings, refererPolicy: 'origin', userAgentPolicy: 'downloader' };
+  const task = buildTask(item, originSettings);
+  assert.deepEqual(task.headers, { Referer: 'https://site.example:8443/' });
+  const handoff = new URL(buildHandoffUrl(item, originSettings, 'origin-only'));
+  assert.deepEqual(JSON.parse(new URLSearchParams(handoff.hash.slice(1)).get('headers')), task.headers);
+  assert.equal(handoff.searchParams.has('headers'), false);
+  assert.deepEqual(downloadHeaders(item.pageUrl, { refererPolicy: 'omit' }), { 'User-Agent': DOWNLOAD_USER_AGENT });
+  const omitSettings = { ...originSettings, refererPolicy: 'omit' };
+  assert.deepEqual(buildTask(item, omitSettings).headers, {});
+  assert.equal(new URL(buildHandoffUrl(item, omitSettings, 'omit-all')).hash, '');
 });
 test('路径清理阻止文件名越界，支持 Linux 与 Windows 根目录', () => {
   assert.equal(buildTask(resource, settings, '../../bad\\name').saveDir, '/app/downloads/.._.._bad_name');

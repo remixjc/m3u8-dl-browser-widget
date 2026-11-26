@@ -183,4 +183,19 @@ test('后台捕获、去重、确认发送与来源限制', async t => {
     assert.equal(pending.task.saveDir, `/app/downloads/hls/${shortName}`);
     assert.equal(new URL(pending.url).searchParams.get('title'), shortName);
   });
+  await t.test('已捕获资源按发送时的设置构建请求头，拒绝未知策略', async () => {
+    const { items } = (await message({ type: 'GET_STATE' })).data;
+    const item = items.find(item => item.id === 'long-hls');
+    const invalid = await message({ type: 'SAVE_SETTINGS', settings: { ...settings, refererPolicy: 'arbitrary' } });
+    assert.equal(invalid.ok, false);
+    const saved = await message({
+      type: 'SAVE_SETTINGS', settings: { ...settings, refererPolicy: 'origin', userAgentPolicy: 'downloader' },
+    });
+    assert.equal(saved.ok, true);
+    const reply = await message({ type: 'SEND', tabId: 7, resourceId: item.id });
+    assert.equal(reply.ok, true);
+    const pending = store[`handoff:${reply.data.tabId}`];
+    assert.deepEqual(pending.task.headers, { Referer: `${new URL(item.pageUrl).origin}/` });
+    assert.deepEqual(JSON.parse(new URLSearchParams(new URL(pending.url).hash.slice(1)).get('headers')), pending.task.headers);
+  });
 });

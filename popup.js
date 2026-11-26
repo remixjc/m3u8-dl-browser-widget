@@ -1,4 +1,4 @@
-import { buildTask, HLS_NAME_MAX_LENGTH, manifestFilename, sanitizeResourceName, serverBase } from './core.js';
+import { buildTask, DEFAULT_SETTINGS, HLS_NAME_MAX_LENGTH, manifestFilename, sanitizeResourceName, serverBase } from './core.js';
 const $ = id => document.getElementById(id);
 let state;
 const report = (message, error = false) => {
@@ -13,6 +13,8 @@ async function send(message) {
 function fillSettings(settings) {
   $('server-url').value = settings.serverUrl;
   $('root-dir').value = settings.rootDir;
+  $('referer-policy').value = settings.refererPolicy ?? DEFAULT_SETTINGS.refererPolicy;
+  $('user-agent-policy').value = settings.userAgentPolicy ?? DEFAULT_SETTINGS.userAgentPolicy;
   for (const [id, key] of [
     ['per-video-folder', 'perVideoFolder'], ['auto-start', 'autoStart'],
     ['show-prompt', 'showPrompt'],
@@ -23,6 +25,7 @@ function readSettings() {
     serverUrl: $('server-url').value.trim(), rootDir: $('root-dir').value.trim(),
     perVideoFolder: $('per-video-folder').checked, autoStart: $('auto-start').checked,
     showPrompt: $('show-prompt').checked,
+    refererPolicy: $('referer-policy').value, userAgentPolicy: $('user-agent-policy').value,
   };
 }
 function renderItems() {

@@ -4,6 +4,8 @@ export const DEFAULT_SETTINGS = {
   perVideoFolder: true,
   autoStart: false,
   showPrompt: true,
+  refererPolicy: 'page',
+  userAgentPolicy: 'compatibility',
 };
 
 export const DOWNLOAD_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
@@ -73,8 +75,15 @@ export function sanitizeResourceName(mediaUrl, value) {
     : name;
 }
 
-export function downloadHeaders(pageUrl) {
-  return { Referer: httpUrl(pageUrl).href, 'User-Agent': DOWNLOAD_USER_AGENT };
+export function downloadHeaders(pageUrl, settings = DEFAULT_SETTINGS) {
+  const page = httpUrl(pageUrl);
+  page.hash = '';
+  const headers = {};
+  if (settings.refererPolicy !== 'omit') {
+    headers.Referer = settings.refererPolicy === 'origin' ? `${page.origin}/` : page.href;
+  }
+  if (settings.userAgentPolicy !== 'downloader') headers['User-Agent'] = DOWNLOAD_USER_AGENT;
+  return headers;
 }
 
 export function buildTask(resource, settings, nameOverride) {
@@ -86,7 +95,7 @@ export function buildTask(resource, settings, nameOverride) {
     throw new Error('请设置 Docker 内的绝对下载根目录，例如 /app/downloads。');
   }
   if (root.split(/[\\/]/).includes('..')) throw new Error('下载根目录不能包含 ..。');
-  const headers = downloadHeaders(resource.pageUrl);
+  const headers = downloadHeaders(resource.pageUrl, settings);
   const separator = /^[a-z]:\\/i.test(root) || root.startsWith('\\\\') ? '\\' : '/';
   const saveRoot = manifestFilename(resource.url) === 'hls.m3u8'
     ? `${root.replace(/[\\/]+$/, '')}${separator}hls`
@@ -109,6 +118,9 @@ export function buildHandoffUrl(resource, settings, nonce) {
   url.searchParams.set('title', sanitizeResourceName(resource.url, resource.name));
   url.searchParams.set('helper', nonce);
   // 凭据不进入服务器收到的 URL query。保存目录由注入的表单桥接器填入。
-  url.hash = new URLSearchParams({ headers: JSON.stringify(downloadHeaders(resource.pageUrl)) }).toString();
+  const headers = downloadHeaders(resource.pageUrl, settings);
+  if (Object.keys(headers).length) {
+    url.hash = new URLSearchParams({ headers: JSON.stringify(headers) }).toString();
+  }
   return url.href;
 }
